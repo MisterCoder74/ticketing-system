@@ -1,0 +1,75 @@
+/*
+ * assets/css/style.css
+ * Custom overrides and extensions on top of Bootstrap 5
+ */
+
+/* ── Typography & base ───────────────────────────────────────────────── */
+body { font-size: .92rem; }
+
+/* ── Navbar ──────────────────────────────────────────────────────────── */
+.navbar { box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+
+/* ── Ticket list cards ───────────────────────────────────────────────── */
+.ticket-card {
+  border-left: 4px solid #6c757d;
+  transition: box-shadow .15s;
+  cursor: pointer;
+}
+.ticket-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.ticket-card.priority-bassa   { border-left-color: #198754; }
+.ticket-card.priority-media   { border-left-color: #ffc107; }
+.ticket-card.priority-alta    { border-left-color: #fd7e14; }
+.ticket-card.priority-urgente { border-left-color: #dc3545; }
+
+/* ── Status badges ───────────────────────────────────────────────────── */
+.badge-status-nuovo          { background:#0dcaf0; color:#000; }
+.badge-status-in_lavorazione { background:#ffc107; color:#000; }
+.badge-status-risolto        { background:#198754; color:#fff; }
+.badge-status-chiuso         { background:#6c757d; color:#fff; }
+
+/* ── Ticket detail ───────────────────────────────────────────────────── */
+.detail-header   { background:#fff; border-radius:.5rem; padding:1.5rem; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.history-item    { border-left:3px solid #dee2e6; padding:.4rem .75rem; margin-bottom:.5rem; font-size:.85rem; }
+.history-item:last-child { border-left-color:#0d6efd; }
+
+/* ── Comment thread ──────────────────────────────────────────────────── */
+.comment-bubble {
+  background:#fff;
+  border-radius:.5rem;
+  padding:.75rem 1rem;
+  box-shadow:0 1px 3px rgba(0,0,0,.07);
+  margin-bottom:.75rem;
+}
+.comment-bubble.from-op { border-left:3px solid #0d6efd; }
+.comment-bubble.from-user { border-left:3px solid #20c997; }
+.comment-thumb { width:48px; height:48px; object-fit:cover; border-radius:.25rem; border:1px solid #dee2e6; cursor:pointer; }
+
+/* ── Upload preview ──────────────────────────────────────────────────── */
+.upload-preview-wrap { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.5rem; }
+.upload-preview-wrap img { width:72px; height:72px; object-fit:cover; border-radius:.25rem; border:1px solid #dee2e6; }
+
+/* ── Filters bar ─────────────────────────────────────────────────────── */
+.filters-bar { background:#fff; border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+
+/* ── Admin user table ────────────────────────────────────────────────── */
+#users-table-wrap { background:#fff; border-radius:.5rem; padding:1rem; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+
+/* ── Report cards ────────────────────────────────────────────────────── */
+.report-card { text-align:center; padding:1.25rem; background:#fff; border-radius:.5rem; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.report-card .display-5 { font-weight:700; }
+
+/* ── Log table ───────────────────────────────────────────────────────── */
+.log-row td { font-size:.82rem; vertical-align:middle; }
+
+/* ── Pagination ──────────────────────────────────────────────────────── */
+.pagination .page-link { font-size:.85rem; }
+
+/* ── Empty state ─────────────────────────────────────────────────────── */
+.empty-state { text-align:center; padding:3rem; color:#adb5bd; }
+.empty-state .fs-1 { font-size:3rem!important; }
+
+/* ── Responsive tweaks ───────────────────────────────────────────────── */
+@media (max-width:767px) {
+  .filters-bar .row > div { margin-bottom:.5rem; }
+  .detail-header { padding:1rem; }
+}
