@@ -1,0 +1,36 @@
+[
+  {
+    "id": "t1",
+    "title": "Impossibile accedere al portale clienti",
+    "description": "Ricevo un errore 403 quando provo ad accedere al portale clienti da Firefox. Il problema non si verifica con Chrome.",
+    "category": "Accesso",
+    "priority": "alta",
+    "status": "nuovo",
+    "created_by": "u3",
+    "assigned_to": null,
+    "created_at": "2026-04-10T08:00:00",
+    "updated_at": "2026-04-10T08:00:00",
+    "history": [
+      { "action": "created", "by": "u3", "at": "2026-04-10T08:00:00", "note": "Ticket creato" }
+    ],
+    "uploads": []
+  },
+  {
+    "id": "t2",
+    "title": "Errore durante l'esportazione PDF",
+    "description": "Quando clicco su 'Esporta PDF' nella sezione report ottengo una pagina bianca senza scaricare nulla.",
+    "category": "Bug",
+    "priority": "media",
+    "status": "in_lavorazione",
+    "created_by": "u3",
+    "assigned_to": "u2",
+    "created_at": "2026-04-11T10:30:00",
+    "updated_at": "2026-04-12T09:15:00",
+    "history": [
+      { "action": "created",        "by": "u3", "at": "2026-04-11T10:30:00", "note": "Ticket creato" },
+      { "action": "status_changed", "by": "u2", "at": "2026-04-12T09:00:00", "note": "Stato: nuovo → in_lavorazione" },
+      { "action": "assigned",       "by": "u2", "at": "2026-04-12T09:15:00", "note": "Assegnato a: u2" }
+    ],
+    "uploads": []
+  }
+]
