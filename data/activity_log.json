@@ -1,0 +1,9 @@
+[
+  {
+    "id": "log1",
+    "action": "ticket_created",
+    "user_id": "u3",
+    "note": "Ticket creato: t1 - Impossibile accedere al portale clienti",
+    "at": "2026-04-10T08:00:00"
+  }
+]
