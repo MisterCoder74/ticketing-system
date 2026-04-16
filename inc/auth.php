@@ -3,11 +3,21 @@
 
 define('APP_ROOT', realpath(__DIR__ . '/..') ?: dirname(__DIR__));
 define('APP_URL', (function (): string {
-    // Resolve symlinks on both sides so the strip always matches,
-    // even on shared hosts where DOCUMENT_ROOT is a symlink.
-    $docRoot = rtrim(str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']) ?: $_SERVER['DOCUMENT_ROOT']), '/');
-    $appRoot = str_replace('\\', '/', APP_ROOT);
-    return rtrim(str_replace($docRoot, '', $appRoot), '/');
+    // Derive the app base URL from SCRIPT_NAME + SCRIPT_FILENAME.
+    // This works on any server regardless of symlinks or DOCUMENT_ROOT quirks:
+    //   SCRIPT_FILENAME (realpath) = APP_ROOT + /relative/path/to/script.php
+    //   SCRIPT_NAME                = /url/base  + /relative/path/to/script.php
+    // So: APP_URL = SCRIPT_NAME minus the relative suffix.
+    $appRoot    = rtrim(APP_ROOT, '/') . '/';
+    $scriptReal = str_replace('\\', '/', realpath($_SERVER['SCRIPT_FILENAME'] ?? '') ?: '');
+    $relScript  = ltrim(str_replace($appRoot, '', $scriptReal), '/');   // e.g. "index.php" or "inc/api.php"
+    $scriptUrl  = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''); // e.g. "/TESTVARI/.../index.php"
+    if ($relScript !== '' && str_ends_with($scriptUrl, '/' . $relScript)) {
+        return rtrim(substr($scriptUrl, 0, strlen($scriptUrl) - strlen($relScript) - 1), '/');
+    }
+    // Fallback: strip realpath-resolved DOCUMENT_ROOT
+    $docRoot = rtrim(str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+    return rtrim(str_replace($docRoot, '', rtrim(str_replace('\\', '/', APP_ROOT), '/')), '/');
 })());
 
 if (session_status() === PHP_SESSION_NONE) {
