@@ -26,16 +26,26 @@ if (isset($_GET['logout'])) {
 
 $loggedIn = isLoggedIn();
 $user     = currentUser();
+$s        = appSettings();
+$brandName  = htmlspecialchars($s['brand_name']);
+$brandColor = htmlspecialchars($s['brand_color'] ?: '#0d6efd');
+$brandLogo  = htmlspecialchars($s['brand_logo'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ticketing System</title>
+  <title><?php echo $brandName; ?></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="<?php echo APP_URL; ?>/assets/css/bootstrap.min.css?v=<?php echo $version; ?>">
   <link rel="stylesheet" href="<?php echo APP_URL; ?>/assets/css/style.css?v=<?php echo $version; ?>">
+  <style>
+    .bg-primary, nav.navbar { background-color: <?php echo $brandColor; ?> !important; }
+    .btn-primary { background-color: <?php echo $brandColor; ?> !important; border-color: <?php echo $brandColor; ?> !important; }
+    .btn-outline-primary { color: <?php echo $brandColor; ?> !important; border-color: <?php echo $brandColor; ?> !important; }
+    .text-primary { color: <?php echo $brandColor; ?> !important; }
+  </style>
 </head>
 <body class="bg-light">
 
@@ -73,8 +83,11 @@ $user     = currentUser();
 
 <?php else: ?>
 <!-- ========== MAIN APP ========== -->
-<nav class="navbar navbar-dark bg-primary px-3">
-  <span class="navbar-brand fw-bold">🎫 Ticketing System</span>
+<nav class="navbar navbar-dark px-3">
+  <span class="navbar-brand fw-bold">
+    <?php if ($brandLogo): ?><img src="<?php echo $brandLogo; ?>" height="26" class="me-2 align-text-bottom" alt=""><?php else: ?>🎫<?php endif; ?>
+    <?php echo $brandName; ?>
+  </span>
   <div class="d-flex align-items-center gap-3">
     <?php if (isOperator()): ?>
       <span id="notif-badge" class="badge bg-warning text-dark d-none" role="button" data-bs-toggle="offcanvas" data-bs-target="#notifPanel">0 nuovi</span>
@@ -91,15 +104,17 @@ $user     = currentUser();
 <!-- Admin tabs -->
 <div class="container-fluid mt-3">
   <ul class="nav nav-tabs mb-3" id="adminTabs">
-    <li class="nav-item"><a class="nav-link active" data-tab="tickets" href="#">🎫 Ticket</a></li>
-    <li class="nav-item"><a class="nav-link" data-tab="users"   href="#">👤 Utenti</a></li>
-    <li class="nav-item"><a class="nav-link" data-tab="report"  href="#">📊 Report</a></li>
-    <li class="nav-item"><a class="nav-link" data-tab="logs"    href="#">📋 Log Attività</a></li>
+    <li class="nav-item"><a class="nav-link active" data-tab="tickets"  href="#">🎫 Ticket</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="users"    href="#">👤 Utenti</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="report"   href="#">📊 Report</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="logs"     href="#">📋 Log Attività</a></li>
+    <li class="nav-item"><a class="nav-link" data-tab="settings" href="#">⚙️ Impostazioni</a></li>
   </ul>
   <div id="tab-tickets"><!-- ticket list injected here --></div>
-  <div id="tab-users"   class="d-none"><!-- users injected here --></div>
-  <div id="tab-report"  class="d-none"><!-- report injected here --></div>
-  <div id="tab-logs"    class="d-none"><!-- logs injected here --></div>
+  <div id="tab-users"    class="d-none"><!-- users injected here --></div>
+  <div id="tab-report"   class="d-none"><!-- report injected here --></div>
+  <div id="tab-logs"     class="d-none"><!-- logs injected here --></div>
+  <div id="tab-settings" class="d-none"><!-- settings injected here --></div>
 </div>
 <?php else: ?>
 <div class="container-fluid mt-3" id="tab-tickets"><!-- ticket list injected here --></div>
@@ -121,10 +136,11 @@ $user     = currentUser();
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const APP_URL  = '<?php echo APP_URL; ?>';
-  const ROLE     = '<?php echo $loggedIn ? $user['role'] : ''; ?>';
+  const APP_URL   = '<?php echo APP_URL; ?>';
+  const ROLE      = '<?php echo $loggedIn ? $user['role'] : ''; ?>';
   const LOGGED_IN = <?php echo $loggedIn ? 'true' : 'false'; ?>;
   const PAGE      = 'index';
+  const BRAND     = <?php echo json_encode(['name' => $s['brand_name'], 'color' => $s['brand_color']]); ?>;
 </script>
 <script src="<?php echo APP_URL; ?>/assets/js/app.js?v=<?php echo $version; ?>"></script>
 </body>

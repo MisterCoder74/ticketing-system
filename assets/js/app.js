@@ -110,13 +110,14 @@ function setupAdminTabs() {
       e.preventDefault();
       document.querySelectorAll('[data-tab]').forEach(x => x.classList.remove('active'));
       a.classList.add('active');
-      ['tickets','users','report','logs'].forEach(t => {
+      ['tickets','users','report','logs','settings'].forEach(t => {
         const el = document.getElementById('tab-' + t);
         if (el) el.classList.toggle('d-none', t !== a.dataset.tab);
       });
-      if (a.dataset.tab === 'users')  loadUsers();
-      if (a.dataset.tab === 'report') loadReport();
-      if (a.dataset.tab === 'logs')   loadLogs();
+      if (a.dataset.tab === 'users')    loadUsers();
+      if (a.dataset.tab === 'report')   loadReport();
+      if (a.dataset.tab === 'logs')     loadLogs();
+      if (a.dataset.tab === 'settings') loadSettingsTab();
     });
   });
 }
@@ -731,7 +732,10 @@ async function loadReport() {
   const byCategory = Object.entries(data.by_category  || {});
 
   wrap.innerHTML = `
-    <h5 class="mb-3">📊 Report</h5>
+    <h5 class="mb-3">📊 Report
+      <a href="${APP_URL}/inc/api.php?action=export_report" class="btn btn-sm btn-outline-secondary ms-2" download>⬇ CSV</a>
+      <a href="${APP_URL}/inc/api.php?action=export_tickets" class="btn btn-sm btn-outline-secondary ms-1" download>⬇ Tutti i ticket CSV</a>
+    </h5>
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-3"><div class="report-card"><div class="display-5 text-primary">${data.total_tickets}</div><div class="text-muted small">Ticket totali</div></div></div>
       <div class="col-6 col-md-3"><div class="report-card"><div class="display-5 text-success">${data.total_users}</div><div class="text-muted small">Utenti</div></div></div>
@@ -770,7 +774,9 @@ async function loadLogs(page = 1) {
   if (!data) return;
 
   wrap.innerHTML = `
-    <h5 class="mb-3">📋 Log Attività</h5>
+    <h5 class="mb-3">📋 Log Attività
+      <a href="${APP_URL}/inc/api.php?action=export_logs" class="btn btn-sm btn-outline-secondary ms-2" download>⬇ CSV</a>
+    </h5>
     <div class="table-responsive">
       <table class="table table-sm table-hover">
         <thead class="table-light">
@@ -793,4 +799,113 @@ async function loadLogs(page = 1) {
       <button class="btn btn-sm btn-outline-secondary"      ${data.logs?.length < 50 ? 'disabled' : ''} onclick="loadLogs(${page + 1})">Succ →</button>
     </div>` : ''}
   `;
+}
+
+// ── ADMIN: SETTINGS ───────────────────────────────────────────────────────────
+
+async function loadSettingsTab() {
+  const wrap = document.getElementById('tab-settings');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+  const data = await apiGet('get_settings');
+  if (!data) return;
+  const s = data.settings || {};
+
+  wrap.innerHTML = `
+    <h5 class="mb-4">⚙️ Impostazioni</h5>
+    <form id="form-settings" class="row g-3" style="max-width:780px">
+      <div class="col-12"><h6 class="text-muted text-uppercase small mb-1">Branding</h6><hr class="mt-0"></div>
+      <div class="col-md-6">
+        <label class="form-label">Nome brand *</label>
+        <input type="text" id="s-brand_name" class="form-control" value="${esc(s.brand_name||'')}" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Colore primario</label>
+        <input type="color" id="s-brand_color" class="form-control form-control-color" value="${esc(s.brand_color||'#0d6efd')}">
+      </div>
+      <div class="col-md-9">
+        <label class="form-label">URL Logo <span class="text-muted small">(opzionale, URL immagine)</span></label>
+        <input type="url" id="s-brand_logo" class="form-control" value="${esc(s.brand_logo||'')}" placeholder="https://...">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email di supporto</label>
+        <input type="email" id="s-support_email" class="form-control" value="${esc(s.support_email||'')}">
+      </div>
+      <div class="col-12 mt-2"><h6 class="text-muted text-uppercase small mb-1">Notifiche Email</h6><hr class="mt-0"></div>
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="s-email_notifications" ${s.email_notifications ? 'checked' : ''}>
+          <label class="form-check-label" for="s-email_notifications">Abilita notifiche email</label>
+        </div>
+        <div class="form-text">Quando attivo, invia email automatiche per nuovi ticket, commenti e cambi di stato.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">SMTP Host</label>
+        <input type="text" id="s-smtp_host" class="form-control" value="${esc(s.smtp_host||'')}" placeholder="smtp.gmail.com">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Porta</label>
+        <input type="number" id="s-smtp_port" class="form-control" value="${s.smtp_port||587}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Cifratura</label>
+        <select id="s-smtp_encryption" class="form-select">
+          <option value="tls"  ${s.smtp_encryption==='tls'  ? 'selected':''}>TLS (porta 587)</option>
+          <option value="ssl"  ${s.smtp_encryption==='ssl'  ? 'selected':''}>SSL (porta 465)</option>
+          <option value="none" ${s.smtp_encryption==='none' ? 'selected':''}>Nessuna (porta 25)</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">SMTP Username</label>
+        <input type="text" id="s-smtp_user" class="form-control" value="${esc(s.smtp_user||'')}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">SMTP Password</label>
+        <input type="password" id="s-smtp_pass" class="form-control" placeholder="${s.smtp_pass ? '(salvata)' : ''}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Email mittente</label>
+        <input type="email" id="s-smtp_from" class="form-control" value="${esc(s.smtp_from||'')}" placeholder="noreply@tuodominio.it">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Nome mittente</label>
+        <input type="text" id="s-smtp_from_name" class="form-control" value="${esc(s.smtp_from_name||'')}">
+      </div>
+      <div class="col-12">
+        <div id="settings-error" class="alert alert-danger d-none"></div>
+        <div id="settings-ok"    class="alert alert-success d-none">Impostazioni salvate!</div>
+        <button type="submit" class="btn btn-primary">💾 Salva impostazioni</button>
+      </div>
+    </form>`;
+
+  document.getElementById('form-settings').addEventListener('submit', saveSettingsTab);
+}
+
+async function saveSettingsTab(e) {
+  e.preventDefault();
+  const errEl = document.getElementById('settings-error');
+  const okEl  = document.getElementById('settings-ok');
+  errEl.classList.add('d-none'); okEl.classList.add('d-none');
+
+  const payload = {
+    brand_name:          document.getElementById('s-brand_name').value,
+    brand_color:         document.getElementById('s-brand_color').value,
+    brand_logo:          document.getElementById('s-brand_logo').value,
+    support_email:       document.getElementById('s-support_email').value,
+    email_notifications: document.getElementById('s-email_notifications').checked,
+    smtp_host:           document.getElementById('s-smtp_host').value,
+    smtp_port:           parseInt(document.getElementById('s-smtp_port').value) || 587,
+    smtp_encryption:     document.getElementById('s-smtp_encryption').value,
+    smtp_user:           document.getElementById('s-smtp_user').value,
+    smtp_pass:           document.getElementById('s-smtp_pass').value,
+    smtp_from:           document.getElementById('s-smtp_from').value,
+    smtp_from_name:      document.getElementById('s-smtp_from_name').value,
+  };
+
+  const data = await api('save_settings', { method: 'POST', body: payload });
+  if (!data) return;
+  if (data.error) { errEl.textContent = data.error; errEl.classList.remove('d-none'); return; }
+
+  toast('Impostazioni salvate!');
+  setTimeout(() => location.reload(), 900); // reload to apply new brand color/name
 }

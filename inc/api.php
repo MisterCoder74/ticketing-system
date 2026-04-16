@@ -3,9 +3,14 @@
 
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/mailer.php';
 
 header('Cache-Control: no-store');
-header('Content-Type: application/json; charset=utf-8');
+// CSV exports send their own headers — skip JSON content-type for those actions
+$_exportActions = ['export_tickets', 'export_logs', 'export_report'];
+if (!in_array($_REQUEST['action'] ?? '', $_exportActions, true)) {
+    header('Content-Type: application/json; charset=utf-8');
+}
 
 $action = $_REQUEST['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
@@ -82,6 +87,30 @@ switch ($action) {
     case 'logs':
         requireRole('admin');
         apiLogs();
+        break;
+
+    // Settings
+    case 'get_settings':
+        requireRole('admin');
+        apiGetSettings();
+        break;
+    case 'save_settings':
+        requireRole('admin');
+        apiSaveSettings();
+        break;
+
+    // CSV exports
+    case 'export_tickets':
+        requireRole('admin');
+        apiExportTickets();
+        break;
+    case 'export_logs':
+        requireRole('admin');
+        apiExportLogs();
+        break;
+    case 'export_report':
+        requireRole('admin');
+        apiExportReport();
         break;
 
     default:
@@ -217,6 +246,9 @@ function apiCreateTicket(): void {
     saveJson(APP_ROOT . '/data/tickets.json', $tickets);
     appendLog('ticket_created', $user['id'], "Ticket creato: {$ticket['id']} — {$ticket['title']}");
 
+    // Email notifications (non-blocking)
+    notifyNewTicket($ticket, $user);
+
     jsonResponse(['success' => true, 'ticket' => $ticket], 201);
 }
 
@@ -226,8 +258,10 @@ function apiUpdateTicket(): void {
     $id = $d['id'] ?? '';
     if (!$id) jsonResponse(['error' => 'ID mancante'], 400);
 
-    $tickets = loadJson(APP_ROOT . '/data/tickets.json');
-    $found   = false;
+    $tickets    = loadJson(APP_ROOT . '/data/tickets.json');
+    $found      = false;
+    $statusChange  = null;
+    $updatedTicket = null;
 
     foreach ($tickets as &$t) {
         if ($t['id'] !== $id) continue;
@@ -238,6 +272,7 @@ function apiUpdateTicket(): void {
             $t['status'] = sanitize($d['status']);
             $t['history'][] = ['action' => 'status_changed', 'by' => $user['id'], 'by_name' => $user['name'],
                 'at' => nowIso(), 'note' => "Stato: {$old} → {$t['status']}"];
+            $statusChange = ['old' => $old, 'new' => $t['status']];
         }
         if (isset($d['priority']) && $d['priority'] !== $t['priority']) {
             $old = $t['priority'];
@@ -251,12 +286,18 @@ function apiUpdateTicket(): void {
                 'at' => nowIso(), 'note' => 'Assegnato a: ' . ($t['assigned_to'] ?? 'nessuno')];
         }
         $t['updated_at'] = nowIso();
+        $updatedTicket   = $t;
         break;
     }
 
     if (!$found) jsonResponse(['error' => 'Ticket non trovato'], 404);
     saveJson(APP_ROOT . '/data/tickets.json', $tickets);
     appendLog('ticket_updated', $user['id'], "Ticket aggiornato: {$id}");
+
+    if ($statusChange && $updatedTicket) {
+        notifyStatusChange($updatedTicket, $statusChange['old'], $statusChange['new'], $user);
+    }
+
     jsonResponse(['success' => true]);
 }
 
@@ -341,6 +382,10 @@ function apiAddComment(): void {
     saveJson(APP_ROOT . '/data/tickets.json', $tickets);
 
     appendLog('comment_added', $user['id'], "Commento su ticket: {$tid}");
+
+    // Email notifications
+    notifyNewComment($ticket, $comment, $user);
+
     $comment['user_name'] = $user['name'];
     $comment['user_role'] = $user['role'];
     jsonResponse(['success' => true, 'comment' => $comment], 201);
@@ -518,6 +563,112 @@ function apiLogs(): void {
     foreach ($logs as &$l) $l['user_name'] = $umap[$l['user_id']]['name'] ?? 'N/A';
 
     jsonResponse(['logs' => $logs, 'total' => $total, 'page' => $page]);
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+
+function apiGetSettings(): void {
+    $cfg = appSettings();
+    $safe = $cfg;
+    $safe['smtp_pass'] = $cfg['smtp_pass'] ? '••••••••' : ''; // mask password
+    jsonResponse(['settings' => $safe]);
+}
+
+function apiSaveSettings(): void {
+    $d    = jsonBody();
+    $file = APP_ROOT . '/data/settings.json';
+    $old  = file_exists($file) ? (json_decode(file_get_contents($file), true) ?? []) : [];
+
+    $allowed = ['brand_name','brand_logo','brand_color','support_email',
+                'email_notifications','smtp_host','smtp_port','smtp_user',
+                'smtp_from','smtp_from_name','smtp_encryption'];
+    $new = $old;
+    foreach ($allowed as $key) {
+        if (array_key_exists($key, $d)) $new[$key] = $d[$key];
+    }
+    // Keep existing password if masked placeholder was returned
+    if (isset($d['smtp_pass']) && $d['smtp_pass'] !== '••••••••') {
+        $new['smtp_pass'] = $d['smtp_pass'];
+    }
+    saveJson($file, [$new]);
+    // saveJson wraps in array_values; write raw object instead
+    file_put_contents($file, json_encode($new, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    jsonResponse(['success' => true]);
+}
+
+// ── CSV EXPORTS ───────────────────────────────────────────────────────────────
+
+function csvRow(array $fields): string {
+    return implode(',', array_map(function($v) {
+        $v = str_replace('"', '""', (string)$v);
+        return '"' . $v . '"';
+    }, $fields)) . "\r\n";
+}
+
+function startCsv(string $filename): void {
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-store');
+    echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel
+}
+
+function apiExportTickets(): void {
+    $tickets = loadJson(APP_ROOT . '/data/tickets.json');
+    $umap    = array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+    startCsv('tickets_' . date('Ymd_His') . '.csv');
+    echo csvRow(['ID','Titolo','Descrizione','Categoria','Priorità','Stato','Aperto da','Assegnato a','Creato il','Aggiornato il']);
+    foreach ($tickets as $t) {
+        echo csvRow([
+            $t['id'], $t['title'], $t['description'], $t['category'],
+            $t['priority'], $t['status'],
+            $umap[$t['created_by']]['name']  ?? $t['created_by'],
+            $t['assigned_to'] ? ($umap[$t['assigned_to']]['name'] ?? $t['assigned_to']) : '',
+            $t['created_at'], $t['updated_at'],
+        ]);
+    }
+    exit;
+}
+
+function apiExportLogs(): void {
+    $logs = array_reverse(loadJson(APP_ROOT . '/data/activity_log.json'));
+    $umap = array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+    startCsv('activity_log_' . date('Ymd_His') . '.csv');
+    echo csvRow(['ID','Azione','Utente','Nota','Data/Ora']);
+    foreach ($logs as $l) {
+        echo csvRow([
+            $l['id'], $l['action'],
+            $umap[$l['user_id']]['name'] ?? $l['user_id'],
+            $l['note'], $l['at'],
+        ]);
+    }
+    exit;
+}
+
+function apiExportReport(): void {
+    $tickets  = loadJson(APP_ROOT . '/data/tickets.json');
+    $users    = loadJson(APP_ROOT . '/data/users.json');
+    $comments = loadJson(APP_ROOT . '/data/comments.json');
+    $byStatus = $byPriority = $byCategory = [];
+    foreach ($tickets as $t) {
+        $byStatus[$t['status']]     = ($byStatus[$t['status']]     ?? 0) + 1;
+        $byPriority[$t['priority']] = ($byPriority[$t['priority']] ?? 0) + 1;
+        $byCategory[$t['category']] = ($byCategory[$t['category']] ?? 0) + 1;
+    }
+    startCsv('report_' . date('Ymd_His') . '.csv');
+    echo csvRow(['Metrica','Valore']);
+    echo csvRow(['Ticket totali', count($tickets)]);
+    echo csvRow(['Utenti totali', count($users)]);
+    echo csvRow(['Commenti totali', count($comments)]);
+    echo csvRow(['','']);
+    echo csvRow(['--- Per stato ---','']);
+    foreach ($byStatus   as $k => $v) echo csvRow([$k, $v]);
+    echo csvRow(['','']);
+    echo csvRow(['--- Per priorità ---','']);
+    foreach ($byPriority as $k => $v) echo csvRow([$k, $v]);
+    echo csvRow(['','']);
+    echo csvRow(['--- Per categoria ---','']);
+    foreach ($byCategory as $k => $v) echo csvRow([$k, $v]);
+    exit;
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────

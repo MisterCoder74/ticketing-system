@@ -1,0 +1,14 @@
+{
+  "brand_name": "Ticketing System",
+  "brand_logo": "",
+  "brand_color": "#0d6efd",
+  "support_email": "",
+  "email_notifications": false,
+  "smtp_host": "",
+  "smtp_port": 587,
+  "smtp_user": "",
+  "smtp_pass": "",
+  "smtp_from": "",
+  "smtp_from_name": "Ticketing System",
+  "smtp_encryption": "tls"
+}

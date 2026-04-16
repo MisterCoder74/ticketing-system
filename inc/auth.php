@@ -24,6 +24,30 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ── App settings ──────────────────────────────────────────────────────────────
+
+function appSettings(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $file  = APP_ROOT . '/data/settings.json';
+    $saved = file_exists($file) ? (json_decode(file_get_contents($file), true) ?? []) : [];
+    $cache = array_merge([
+        'brand_name'          => 'Ticketing System',
+        'brand_logo'          => '',
+        'brand_color'         => '#0d6efd',
+        'support_email'       => '',
+        'email_notifications' => false,
+        'smtp_host'           => '',
+        'smtp_port'           => 587,
+        'smtp_user'           => '',
+        'smtp_pass'           => '',
+        'smtp_from'           => '',
+        'smtp_from_name'      => 'Ticketing System',
+        'smtp_encryption'     => 'tls',
+    ], $saved);
+    return $cache;
+}
+
 // ── JSON helpers ─────────────────────────────────────────────────────────────
 
 function loadJson(string $file): array {
