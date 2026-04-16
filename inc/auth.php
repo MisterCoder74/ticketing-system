@@ -2,11 +2,13 @@
 // inc/auth.php — Authentication, sessions, permissions
 
 define('APP_ROOT', realpath(__DIR__ . '/..') ?: dirname(__DIR__));
-define('APP_URL',  rtrim(str_replace(
-    str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']),
-    '',
-    str_replace('\\', '/', APP_ROOT)
-), '/'));
+define('APP_URL', (function (): string {
+    // Resolve symlinks on both sides so the strip always matches,
+    // even on shared hosts where DOCUMENT_ROOT is a symlink.
+    $docRoot = rtrim(str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT']) ?: $_SERVER['DOCUMENT_ROOT']), '/');
+    $appRoot = str_replace('\\', '/', APP_ROOT);
+    return rtrim(str_replace($docRoot, '', $appRoot), '/');
+})());
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
