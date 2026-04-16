@@ -1,7 +1,7 @@
 <?php
 // inc/helpers.php — Validation, sanitization, file upload
 
-if (!defined('APP_ROOT')) define('APP_ROOT', dirname(__DIR__));
+if (!defined('APP_ROOT')) define('APP_ROOT', realpath(__DIR__ . '/..') ?: dirname(__DIR__));
 
 define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
 define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5 MB

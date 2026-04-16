@@ -1,7 +1,7 @@
 <?php
 // inc/auth.php — Authentication, sessions, permissions
 
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', realpath(__DIR__ . '/..') ?: dirname(__DIR__));
 define('APP_URL',  rtrim(str_replace(
     str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']),
     '',
@@ -20,6 +20,8 @@ function loadJson(string $file): array {
 }
 
 function saveJson(string $file, array $data): void {
+    $dir = dirname($file);
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
     file_put_contents(
         $file,
         json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
