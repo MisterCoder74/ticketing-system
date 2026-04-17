@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — Ticketing System</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <style>
+    :root { --brand: #0d6efd; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #212529; }
+
+    /* Sidebar */
+    #sidebar {
+      position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+      background: #1a1d23; overflow-y: auto; padding: 0; z-index: 100;
+      border-right: 1px solid #2d3139;
+    }
+    #sidebar .brand { background: var(--brand); padding: 20px 24px; display: block; text-decoration: none; }
+    #sidebar .brand h5 { color: #fff; margin: 0; font-size: 1rem; font-weight: 700; }
+    #sidebar .brand small { color: rgba(255,255,255,.65); font-size: .75rem; }
+    #sidebar .nav-section { padding: 14px 18px 4px; font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; color: #6c757d; letter-spacing: .08em; }
+    #sidebar a.nav-link { color: #adb5bd; padding: 7px 24px; font-size: .875rem; border-radius: 0;
+      display: block; text-decoration: none; transition: all .15s; }
+    #sidebar a.nav-link:hover, #sidebar a.nav-link.active { background: rgba(13,110,253,.15);
+      color: #4d9fff; border-left: 3px solid var(--brand); padding-left: 21px; }
+
+    /* Main content */
+    main { margin-left: 260px; padding: 40px 48px; max-width: 1000px; }
+
+    /* Section anchors */
+    section { padding-top: 20px; margin-top: 10px; scroll-margin-top: 80px; }
+    h1, h2, h3, h4 { color: #1a1d23; }
+    h2 { border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-top: 48px; font-size: 1.5rem; }
+    h3 { margin-top: 32px; font-size: 1.15rem; color: #343a40; }
+    h4 { margin-top: 20px; font-size: 1rem; color: #495057; }
+
+    /* Code blocks */
+    pre { background: #1a1d23; color: #abb2bf; padding: 16px 20px; border-radius: 8px;
+      font-size: .82rem; line-height: 1.6; overflow-x: auto; }
+    code:not(pre code) { background: #e9ecef; color: #c7254e; padding: 2px 6px;
+      border-radius: 4px; font-size: .88em; }
+
+    /* Role badge cards */
+    .role-card { border-left: 5px solid; border-radius: 8px; padding: 20px 24px;
+      margin-bottom: 16px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .role-card.admin    { border-color: #dc3545; }
+    .role-card.operator { border-color: #fd7e14; }
+    .role-card.user     { border-color: #0d6efd; }
+    .role-badge { font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 20px; letter-spacing: .06em; }
+    .role-badge.admin    { background: #fde8ea; color: #dc3545; }
+    .role-badge.operator { background: #fef0e6; color: #fd7e14; }
+    .role-badge.user     { background: #e8f0fe; color: #0d6efd; }
+
+    /* Tables */
+    .doc-table { font-size: .875rem; }
+    .doc-table th { background: #f1f3f5; font-weight: 600; }
+
+    /* Workflow steps */
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps li { counter-increment: step; padding: 10px 12px 10px 56px; position: relative;
+      margin-bottom: 8px; background: #fff; border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); font-size: .9rem; }
+    .steps li::before { content: counter(step); position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%;
+      background: var(--brand); color: #fff; font-weight: 700; font-size: .8rem;
+      display: flex; align-items: center; justify-content: center; }
+
+    /* Alert-style callouts */
+    .callout { border-left: 4px solid; padding: 12px 16px; border-radius: 0 6px 6px 0;
+      margin: 16px 0; font-size: .9rem; }
+    .callout-info  { background: #e8f0fe; border-color: #0d6efd; }
+    .callout-warn  { background: #fff8e6; border-color: #ffc107; }
+    .callout-tip   { background: #e6f9f1; border-color: #198754; }
+
+    /* API endpoint pills */
+    .endpoint { display: inline-flex; align-items: center; gap: 8px; background: #1a1d23;
+      color: #abb2bf; padding: 6px 12px; border-radius: 6px; font-family: monospace;
+      font-size: .82rem; margin: 4px 0; }
+    .endpoint .method { font-weight: 700; padding: 2px 7px; border-radius: 4px; font-size: .75rem; }
+    .method-get  { background: #198754; color: #fff; }
+    .method-post { background: #0d6efd; color: #fff; }
+    .method-del  { background: #dc3545; color: #fff; }
+
+    /* Print */
+    @media print {
+      #sidebar { display: none; }
+      main { margin: 0; padding: 24px; }
+    }
+    @media (max-width: 768px) {
+      #sidebar { position: static; width: 100%; height: auto; }
+      main { margin-left: 0; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── SIDEBAR ────────────────────────────────────────────────────────────── -->
+<nav id="sidebar">
+  <a class="brand" href="#">
+    <h5>🎫 Ticketing System</h5>
+    <small>Technical Documentation</small>
+  </a>
+
+  <div class="nav-section">Overview</div>
+  <a class="nav-link" href="#intro">Introduction</a>
+  <a class="nav-link" href="#techstack">Tech Stack</a>
+  <a class="nav-link" href="#architecture">Architecture</a>
+  <a class="nav-link" href="#installation">Installation</a>
+
+  <div class="nav-section">Roles & Workflows</div>
+  <a class="nav-link" href="#role-admin">🔴 Administrator</a>
+  <a class="nav-link" href="#role-operator">🟠 Operator</a>
+  <a class="nav-link" href="#role-user">🔵 Standard User</a>
+
+  <div class="nav-section">Features</div>
+  <a class="nav-link" href="#tickets">Ticket Lifecycle</a>
+  <a class="nav-link" href="#comments">Comments &amp; Uploads</a>
+  <a class="nav-link" href="#notifications">Email Notifications</a>
+  <a class="nav-link" href="#whitelabel">White-Label Config</a>
+  <a class="nav-link" href="#csv">CSV Exports</a>
+
+  <div class="nav-section">Technical Reference</div>
+  <a class="nav-link" href="#data">Data Files</a>
+  <a class="nav-link" href="#api">API Reference</a>
+  <a class="nav-link" href="#permissions">Permission Matrix</a>
+  <a class="nav-link" href="#smtp">SMTP Setup</a>
+
+  <div class="nav-section">Appendix</div>
+  <a class="nav-link" href="#defaults">Default Credentials</a>
+  <a class="nav-link" href="#changelog">Changelog</a>
+</nav>
+
+<!-- ─── MAIN ──────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- HERO -->
+  <section id="intro">
+    <div class="d-flex align-items-center gap-3 mb-2">
+      <span style="font-size:3rem">🎫</span>
+      <div>
+        <h1 class="mb-0" style="font-size:2rem">Ticketing System</h1>
+        <p class="text-muted mb-0">Technical &amp; Operational Documentation — v1.0</p>
+      </div>
+    </div>
+    <hr>
+    <p class="lead">
+      A lightweight, self-hosted customer support ticketing platform built in PHP with a
+      Bootstrap 5 interface. No framework, no Composer, no database required — runs on
+      any standard PHP shared hosting out of the box.
+    </p>
+    <div class="row g-3 mt-2">
+      <div class="col-sm-4">
+        <div class="card text-center p-3">
+          <div style="font-size:2rem">👥</div>
+          <strong>3 Roles</strong>
+          <div class="text-muted small">Admin / Operator / User</div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card text-center p-3">
+          <div style="font-size:2rem">📂</div>
+          <strong>JSON Storage</strong>
+          <div class="text-muted small">No SQL database needed</div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card text-center p-3">
+          <div style="font-size:2rem">📧</div>
+          <strong>Email Notifications</strong>
+          <div class="text-muted small">SMTP or PHP mail()</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section id="techstack">
+    <h2>Tech Stack</h2>
+    <table class="table doc-table">
+      <thead><tr><th>Layer</th><th>Technology</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Backend</td><td>PHP 8.1+</td><td>No framework, no Composer required</td></tr>
+        <tr><td>Frontend</td><td>Vanilla JS + Bootstrap 5.3</td><td>SPA-style via <code>fetch()</code> calls to <code>inc/api.php</code></td></tr>
+        <tr><td>Storage</td><td>JSON flat files</td><td><code>data/</code> directory — no MySQL/PostgreSQL needed</td></tr>
+        <tr><td>Session</td><td>PHP native sessions</td><td>Session-based auth, no JWT</td></tr>
+        <tr><td>Email</td><td>Native SMTP or <code>mail()</code></td><td>No PHPMailer required — built-in SMTP client</td></tr>
+        <tr><td>Uploads</td><td>PHP <code>$_FILES</code></td><td>Images stored in <code>uploads/</code> per ticket</td></tr>
+        <tr><td>Hosting</td><td>Any Apache/Nginx shared host</td><td>Tested on cPanel shared hosting with symlinked paths</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <pre>ticketing-system/
+├── index.php                  # Entry point: login form + main SPA shell
+├── pages/
+│   └── ticket_details.php     # Ticket detail view (full page)
+├── inc/
+│   ├── auth.php               # APP_ROOT/APP_URL constants, session helpers, appSettings()
+│   ├── api.php                # REST-like JSON API (~25 endpoints + CSV exports)
+│   ├── helpers.php            # loadJson(), saveJson(), sanitize(), generateId(), etc.
+│   └── mailer.php             # Email notifications (SMTP + mail() fallback)
+├── assets/
+│   ├── css/style.css          # Custom styles (dark sidebar, ticket cards, badges)
+│   └── js/app.js              # All frontend logic — fetch calls, DOM rendering, tabs
+├── data/                      # JSON data store (writable)
+│   ├── users.json             # User accounts
+│   ├── tickets.json           # All tickets + history arrays
+│   ├── comments.json          # Comments (keyed by ticket_id)
+│   ├── activity_log.json      # Audit log of all actions
+│   └── settings.json          # White-label + SMTP configuration
+└── uploads/                   # Uploaded images (auto-created per ticket subfolder)</pre>
+
+    <h3>Request Flow</h3>
+    <ol class="steps">
+      <li>Browser loads <code>index.php</code> — PHP validates session and renders the HTML shell</li>
+      <li>JavaScript in <code>app.js</code> calls <code>inc/api.php?action=&lt;name&gt;</code> via <code>fetch()</code></li>
+      <li><code>api.php</code> validates session, checks role permission, executes the function</li>
+      <li>Function reads/writes JSON files through <code>helpers.php</code> utilities</li>
+      <li>JSON response returned; JS renders the result into the DOM</li>
+      <li>On mutations (new ticket, comment, status change), <code>mailer.php</code> sends notifications</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <strong>Path resolution:</strong> <code>APP_ROOT</code> is resolved with <code>realpath()</code>
+      to handle symlinked shared hosting roots. <code>APP_URL</code> is derived from
+      <code>SCRIPT_NAME</code> / <code>SCRIPT_FILENAME</code> rather than <code>DOCUMENT_ROOT</code>,
+      making it symlink-safe on any server configuration.
+    </div>
+  </section>
+
+  <!-- INSTALLATION -->
+  <section id="installation">
+    <h2>Installation</h2>
+    <ol class="steps">
+      <li>Upload all files to your server (FTP, SFTP, or Git clone)</li>
+      <li>Make the <code>data/</code> directory writable: <code>chmod 755 data/</code></li>
+      <li>Make the <code>uploads/</code> directory writable: <code>chmod 755 uploads/</code> (create it if missing)</li>
+      <li>Visit <code>https://yourdomain.com/path/to/index.php</code> — login screen appears</li>
+      <li>Log in with the default admin credentials (see <a href="#defaults">Default Credentials</a>)</li>
+      <li>Go to <strong>⚙️ Impostazioni</strong> to configure brand name, color, and email notifications</li>
+    </ol>
+    <div class="callout callout-warn">
+      <strong>Security:</strong> Change all default passwords immediately after the first login.
+      The <code>data/</code> directory must not be publicly accessible via HTTP — add an
+      <code>.htaccess</code> rule or configure Nginx to deny direct access.
+    </div>
+    <div class="callout callout-tip">
+      <strong>No rewrite rules needed.</strong> The application works without <code>mod_rewrite</code>.
+      All pages are accessed directly via their PHP filenames.
+    </div>
+  </section>
+
+  <!-- ─── ROLES ─────────────────────────────────────────────────────────────── -->
+  <section id="roles">
+    <h2>Roles &amp; Access Control</h2>
+    <p>The system has three roles with progressively restricted permissions:</p>
+
+    <div class="role-card admin">
+      <span class="role-badge admin">Admin</span>
+      <h4 class="mt-2 mb-1">Administrator</h4>
+      <p class="text-muted small mb-2">Full system access. Typically 1–2 people.</p>
+      <ul class="mb-0 small">
+        <li>Manage all tickets (view, update status, priority, assignment, delete)</li>
+        <li>Manage all users (create, edit, activate/deactivate, delete)</li>
+        <li>View admin dashboard tabs: Tickets, Users, Report, Log Attività, Impostazioni</li>
+        <li>Access statistics report and full activity log</li>
+        <li>Export CSV: all tickets, activity log, statistics report</li>
+        <li>Configure white-label branding and SMTP email settings</li>
+        <li>Receive email notifications for all new tickets, status changes, and comments</li>
+      </ul>
+    </div>
+
+    <div class="role-card operator">
+      <span class="role-badge operator">Operator</span>
+      <h4 class="mt-2 mb-1">Operator (Support Agent)</h4>
+      <p class="text-muted small mb-2">Handles ticket resolution. Multiple operators possible.</p>
+      <ul class="mb-0 small">
+        <li>View all tickets in the system</li>
+        <li>Update ticket status and priority</li>
+        <li>Add comments to any ticket</li>
+        <li>View in-app notification badge for tickets updated in the last 24h</li>
+        <li>Receive email notifications for new tickets and user comments</li>
+        <li><strong class="text-muted">Cannot:</strong> create/delete users, access admin report, delete tickets, change settings</li>
+      </ul>
+    </div>
+
+    <div class="role-card user">
+      <span class="role-badge user">User</span>
+      <h4 class="mt-2 mb-1">Standard User (Customer)</h4>
+      <p class="text-muted small mb-2">End-user who submits support requests.</p>
+      <ul class="mb-0 small">
+        <li>View only their own tickets</li>
+        <li>Create new tickets (title, description, category, priority)</li>
+        <li>Add comments on their own open tickets</li>
+        <li>Upload images as attachments on their tickets</li>
+        <li>Receive email notifications when an operator changes ticket status or adds a comment</li>
+        <li><strong class="text-muted">Cannot:</strong> see other users' tickets, change status/priority, access admin area</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ADMIN WORKFLOW -->
+  <section id="role-admin">
+    <h2>🔴 Administrator Workflow</h2>
+
+    <h3>Daily Operations</h3>
+    <ol class="steps">
+      <li>Log in → land on the <strong>Ticket</strong> tab showing all tickets in the system</li>
+      <li>Review ticket list — filter by status (<em>nuovo, in lavorazione, in attesa, risolto, chiuso</em>) or priority</li>
+      <li>Click any ticket to open the detail view — review description, history, and comments</li>
+      <li>Assign unassigned tickets to an operator using the <em>Assegna a</em> dropdown</li>
+      <li>Update status or priority as needed</li>
+    </ol>
+
+    <h3>User Management</h3>
+    <ol class="steps">
+      <li>Click the <strong>👤 Utenti</strong> tab</li>
+      <li>To add a user: click <em>+ Nuovo Utente</em>, fill in username, name, email, role, password</li>
+      <li>To edit: click the edit icon on any user row — modify name, email, role, active status, or password</li>
+      <li>To deactivate: toggle the <em>Attivo</em> field to <code>false</code> — the user can no longer log in</li>
+      <li>To delete: click the delete icon (red trash) — confirms before removing</li>
+    </ol>
+
+    <h3>Monitoring &amp; Reporting</h3>
+    <ol class="steps">
+      <li>Click <strong>📊 Report</strong> for an overview: total tickets, counts by status / priority / category</li>
+      <li>Click <strong>📋 Log Attività</strong> for a full chronological audit trail (paginated, 50 entries/page)</li>
+      <li>Use the <em>⬇ CSV</em> buttons on Report and Log tabs to export data for Excel</li>
+    </ol>
+
+    <h3>System Configuration</h3>
+    <ol class="steps">
+      <li>Click <strong>⚙️ Impostazioni</strong></li>
+      <li>Set <em>Nome brand</em>, <em>Colore primario</em>, and optionally a <em>Logo URL</em> — these apply site-wide immediately after save</li>
+      <li>To enable email notifications: fill in SMTP credentials, toggle <em>Abilita notifiche email</em>, save</li>
+      <li>After saving, the page reloads to apply branding changes</li>
+    </ol>
+  </section>
+
+  <!-- OPERATOR WORKFLOW -->
+  <section id="role-operator">
+    <h2>🟠 Operator Workflow</h2>
+
+    <h3>Handling Incoming Tickets</h3>
+    <ol class="steps">
+      <li>Log in → ticket list shows all open tickets across all users</li>
+      <li>Optionally check the <strong>🔔</strong> notification badge (top-right) for tickets updated in the last 24h</li>
+      <li>Click a ticket to open the detail view</li>
+      <li>Read the description and any existing comments</li>
+      <li>Set status to <code>in lavorazione</code> to signal the ticket is being worked on</li>
+      <li>Add a comment explaining next steps or requesting more information</li>
+    </ol>
+
+    <h3>Resolving a Ticket</h3>
+    <ol class="steps">
+      <li>Investigate the issue and provide a resolution in the comment section</li>
+      <li>Change status to <code>risolto</code> — the ticket opener receives an email notification</li>
+      <li>If the user confirms, status can be moved to <code>chiuso</code> (by admin or operator)</li>
+      <li>If the issue is not resolved, the user can reopen by adding a comment — status moves back</li>
+    </ol>
+
+    <h3>Status Reference</h3>
+    <table class="table doc-table">
+      <thead><tr><th>Status</th><th>Meaning</th><th>Who sets it</th></tr></thead>
+      <tbody>
+        <tr><td><code>nuovo</code></td><td>Just created, not yet assigned</td><td>System (automatic)</td></tr>
+        <tr><td><code>in lavorazione</code></td><td>Operator is actively working on it</td><td>Operator / Admin</td></tr>
+        <tr><td><code>in attesa</code></td><td>Waiting for info from the user</td><td>Operator / Admin</td></tr>
+        <tr><td><code>risolto</code></td><td>Issue resolved, awaiting user confirmation</td><td>Operator / Admin</td></tr>
+        <tr><td><code>chiuso</code></td><td>Fully closed — users cannot add comments</td><td>Operator / Admin</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- USER WORKFLOW -->
+  <section id="role-user">
+    <h2>🔵 Standard User Workflow</h2>
+
+    <h3>Submitting a Support Request</h3>
+    <ol class="steps">
+      <li>Log in → see only your own tickets in the list</li>
+      <li>Click <strong>+ Nuovo Ticket</strong></li>
+      <li>Fill in:
+        <ul class="mt-1">
+          <li><strong>Titolo</strong> — short summary of the issue</li>
+          <li><strong>Descrizione</strong> — full description with as much detail as possible</li>
+          <li><strong>Categoria</strong> — type of issue (e.g., Supporto Tecnico, Fatturazione…)</li>
+          <li><strong>Priorità</strong> — Bassa / Media / Alta / Urgente</li>
+        </ul>
+      </li>
+      <li>Submit — the ticket appears in your list with status <code>nuovo</code></li>
+      <li>All admins and operators receive an email notification of the new ticket</li>
+    </ol>
+
+    <h3>Following Up on a Ticket</h3>
+    <ol class="steps">
+      <li>Click the ticket in your list to open the detail view</li>
+      <li>Read operator comments in the timeline</li>
+      <li>Add a comment to provide more information or ask a question</li>
+      <li>Attach images if helpful (drag &amp; drop or file picker)</li>
+      <li>You will receive an email when the operator changes the status or adds a comment</li>
+    </ol>
+
+    <div class="callout callout-info">
+      <strong>Closed tickets:</strong> Once a ticket reaches <code>chiuso</code> status, comments are disabled.
+      If the issue resurfaces, open a new ticket referencing the original ticket ID.
+    </div>
+
+    <h3>Priority Guide</h3>
+    <table class="table doc-table">
+      <thead><tr><th>Priority</th><th>Use when…</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge bg-secondary">Bassa</span></td><td>Minor issue, no business impact, can wait</td></tr>
+        <tr><td><span class="badge bg-info text-dark">Media</span></td><td>Noticeable issue, workaround available</td></tr>
+        <tr><td><span class="badge bg-warning text-dark">Alta</span></td><td>Significant impact on work, needs prompt attention</td></tr>
+        <tr><td><span class="badge bg-danger">Urgente</span></td><td>Critical failure, production blocked, no workaround</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- TICKET LIFECYCLE -->
+  <section id="tickets">
+    <h2>Ticket Lifecycle</h2>
+    <p>Every ticket carries a <code>history</code> array — an immutable audit trail of all actions taken:</p>
+    <pre>[
+  { "action": "created",        "by": "u_xxx", "by_name": "Mario Rossi",  "at": "2026-04-17T..." },
+  { "action": "status_changed", "by": "u_yyy", "by_name": "Op. Verdi",    "at": "...", "note": "nuovo → in lavorazione" },
+  { "action": "comment_added",  "by": "u_yyy", "by_name": "Op. Verdi",    "at": "..." },
+  { "action": "status_changed", "by": "u_yyy", "by_name": "Op. Verdi",    "at": "...", "note": "in lavorazione → risolto" }
+]</pre>
+
+    <h3>Ticket Data Model</h3>
+    <table class="table doc-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>string</td><td>Unique ID prefixed <code>t_</code> (e.g. <code>t_a3f2b</code>)</td></tr>
+        <tr><td><code>title</code></td><td>string</td><td>Short summary</td></tr>
+        <tr><td><code>description</code></td><td>string</td><td>Full problem description</td></tr>
+        <tr><td><code>category</code></td><td>string</td><td>Issue type (free text)</td></tr>
+        <tr><td><code>priority</code></td><td>string</td><td><code>bassa | media | alta | urgente</code></td></tr>
+        <tr><td><code>status</code></td><td>string</td><td><code>nuovo | in lavorazione | in attesa | risolto | chiuso</code></td></tr>
+        <tr><td><code>created_by</code></td><td>string</td><td>User ID of the opener</td></tr>
+        <tr><td><code>assigned_to</code></td><td>string|null</td><td>Operator/Admin user ID, or null</td></tr>
+        <tr><td><code>uploads</code></td><td>array</td><td>Relative paths to uploaded files</td></tr>
+        <tr><td><code>history</code></td><td>array</td><td>Immutable audit trail of actions</td></tr>
+        <tr><td><code>created_at</code></td><td>ISO 8601</td><td>Creation timestamp</td></tr>
+        <tr><td><code>updated_at</code></td><td>ISO 8601</td><td>Last modification timestamp</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- COMMENTS & UPLOADS -->
+  <section id="comments">
+    <h2>Comments &amp; File Uploads</h2>
+    <p>Comments are stored in <code>data/comments.json</code> separately from tickets, linked by <code>ticket_id</code>.</p>
+    <ul>
+      <li>Any participant (user or staff) can comment on open tickets</li>
+      <li>Users cannot comment on <code>chiuso</code> tickets</li>
+      <li>Each comment can carry multiple image attachments uploaded in the same request</li>
+      <li>Uploaded files are saved in <code>uploads/&lt;ticket_id&gt;/&lt;filename&gt;</code></li>
+      <li>Accepted types: <code>image/jpeg, image/png, image/gif, image/webp</code> — max 5 MB per file</li>
+    </ul>
+  </section>
+
+  <!-- EMAIL NOTIFICATIONS -->
+  <section id="notifications">
+    <h2>Email Notifications</h2>
+    <p>Triggered automatically by API actions when <em>Notifiche email</em> is enabled in settings.</p>
+
+    <table class="table doc-table">
+      <thead><tr><th>Event</th><th>Who receives it</th></tr></thead>
+      <tbody>
+        <tr><td>New ticket created</td><td>All Admins + Operators</td></tr>
+        <tr><td>Ticket status changed</td><td>All Admins + Operators + Ticket opener</td></tr>
+        <tr><td>Comment added by a User</td><td>All Admins + Operators (not the commenter)</td></tr>
+        <tr><td>Comment added by Operator/Admin</td><td>Ticket opener (not the commenter)</td></tr>
+      </tbody>
+    </table>
+
+    <p>Emails are HTML-formatted with the brand color, a summary table, and a direct link to the ticket.
+      If SMTP credentials are configured, the built-in SMTP client handles delivery (TLS/SSL/plain);
+      otherwise falls back to PHP's <code>mail()</code>.</p>
+
+    <div class="callout callout-tip">
+      Notifications are sent inline with the API response (not queued). On very busy systems,
+      consider moving them to a background process or cron job to avoid response latency.
+    </div>
+  </section>
+
+  <!-- WHITE-LABEL -->
+  <section id="whitelabel">
+    <h2>White-Label Configuration</h2>
+    <p>All branding settings are in <code>data/settings.json</code> and editable from <strong>⚙️ Impostazioni</strong>:</p>
+
+    <table class="table doc-table">
+      <thead><tr><th>Setting</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>brand_name</code></td><td>Ticketing System</td><td>Shown in navbar, page title, email footer</td></tr>
+        <tr><td><code>brand_logo</code></td><td>(empty)</td><td>URL to a logo image — replaces the 🎫 emoji in navbar</td></tr>
+        <tr><td><code>brand_color</code></td><td>#0d6efd</td><td>Primary color for navbar, buttons, badges — any hex color</td></tr>
+        <tr><td><code>support_email</code></td><td>(empty)</td><td>Displayed as support contact in user-facing areas</td></tr>
+      </tbody>
+    </table>
+
+    <p>After saving, the page reloads and the new color/name applies immediately across all pages — no server restart required.</p>
+  </section>
+
+  <!-- CSV EXPORTS -->
+  <section id="csv">
+    <h2>CSV Exports</h2>
+    <p>Available from the <strong>📊 Report</strong> and <strong>📋 Log Attività</strong> tabs (Admin only).</p>
+
+    <table class="table doc-table">
+      <thead><tr><th>Export</th><th>Tab</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><em>Tutti i ticket CSV</em></td>
+          <td>Report</td>
+          <td>All tickets with ID, title, description, category, priority, status, opener, assigned to, dates</td>
+        </tr>
+        <tr>
+          <td><em>Report CSV</em></td>
+          <td>Report</td>
+          <td>Summary statistics: totals, counts by status / priority / category</td>
+        </tr>
+        <tr>
+          <td><em>Log CSV</em></td>
+          <td>Log Attività</td>
+          <td>Full activity log: action, user, note, timestamp — all events</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Files include a UTF-8 BOM so Excel opens them correctly on Windows without encoding issues.</p>
+  </section>
+
+  <!-- DATA FILES -->
+  <section id="data">
+    <h2>Data Files</h2>
+    <p>All data is stored as JSON arrays in the <code>data/</code> directory. Files are created automatically on first write.</p>
+
+    <table class="table doc-table">
+      <thead><tr><th>File</th><th>Structure</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>users.json</code></td><td>Array of user objects</td><td>User accounts — includes passwords in plain text (by design for simplicity)</td></tr>
+        <tr><td><code>tickets.json</code></td><td>Array of ticket objects</td><td>All tickets with embedded <code>history</code> arrays</td></tr>
+        <tr><td><code>comments.json</code></td><td>Array of comment objects</td><td>Comments from all users, linked by <code>ticket_id</code></td></tr>
+        <tr><td><code>activity_log.json</code></td><td>Array of log entries</td><td>Append-only audit log of all user actions</td></tr>
+        <tr><td><code>settings.json</code></td><td>Single object</td><td>White-label config + SMTP credentials</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warn">
+      <strong>Backups:</strong> Since the entire dataset is in the <code>data/</code> directory,
+      backing up the system is as simple as copying that folder. Schedule daily backups of
+      <code>data/</code> and <code>uploads/</code>.
+    </div>
+  </section>
+
+  <!-- API REFERENCE -->
+  <section id="api">
+    <h2>API Reference</h2>
+    <p>All API calls go to <code>inc/api.php?action=&lt;name&gt;</code>.
+       GET requests pass parameters as query strings; POST/mutating requests send a JSON body.</p>
+
+    <h3>Authentication</h3>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=login</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=logout</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=me</div>
+
+    <h3>Tickets</h3>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=tickets<span class="text-muted ms-2">[&amp;status=&amp;priority=&amp;category=&amp;search=&amp;assigned_to=&amp;page=&amp;per_page=]</span></div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=ticket&amp;id=&lt;id&gt;</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=create_ticket</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=update_ticket <span class="text-muted ms-2">operator+admin</span></div>
+    <div class="endpoint"><span class="method method-del">POST</span>api.php?action=delete_ticket <span class="text-muted ms-2">admin only</span></div>
+
+    <h3>Comments &amp; Uploads</h3>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=comments&amp;ticket_id=&lt;id&gt;</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=add_comment <span class="text-muted ms-2">multipart/form-data with optional uploads[]</span></div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=upload <span class="text-muted ms-2">multipart/form-data</span></div>
+
+    <h3>Users <span class="badge bg-danger ms-2" style="font-size:.65rem">admin only</span></h3>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=users</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=create_user</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=update_user</div>
+    <div class="endpoint"><span class="method method-del">POST</span>api.php?action=delete_user</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=operators <span class="text-muted ms-2">operator+admin</span></div>
+
+    <h3>Admin Data <span class="badge bg-danger ms-2" style="font-size:.65rem">admin only</span></h3>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=report</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=logs[&amp;page=]</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=notifications</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=get_settings</div>
+    <div class="endpoint"><span class="method method-post">POST</span>api.php?action=save_settings</div>
+
+    <h3>CSV Exports <span class="badge bg-danger ms-2" style="font-size:.65rem">admin only</span></h3>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=export_tickets</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=export_logs</div>
+    <div class="endpoint"><span class="method method-get">GET</span>api.php?action=export_report</div>
+  </section>
+
+  <!-- PERMISSION MATRIX -->
+  <section id="permissions">
+    <h2>Permission Matrix</h2>
+    <table class="table doc-table text-center">
+      <thead>
+        <tr>
+          <th class="text-start">Action</th>
+          <th><span class="role-badge admin">Admin</span></th>
+          <th><span class="role-badge operator">Operator</span></th>
+          <th><span class="role-badge user">User</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="text-start">View own tickets</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td class="text-start">View all tickets</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td class="text-start">Create ticket</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td class="text-start">Update status / priority</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td class="text-start">Assign ticket</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td class="text-start">Delete ticket</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td class="text-start">Add comment</td><td>✅</td><td>✅</td><td>✅ (own, open)</td></tr>
+        <tr><td class="text-start">Upload images</td><td>✅</td><td>✅</td><td>✅ (own)</td></tr>
+        <tr><td class="text-start">Manage users</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td class="text-start">View report &amp; logs</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td class="text-start">Export CSV</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td class="text-start">Change settings / branding</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td class="text-start">View notifications panel</td><td>✅</td><td>✅</td><td>❌</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SMTP SETUP -->
+  <section id="smtp">
+    <h2>SMTP Setup</h2>
+    <p>Configure from <strong>⚙️ Impostazioni → Notifiche Email</strong>. Common provider settings:</p>
+
+    <h3>Gmail (App Password required)</h3>
+    <pre>SMTP Host:       smtp.gmail.com
+Port:            587
+Encryption:      TLS
+Username:        youraddress@gmail.com
+Password:        &lt;16-char App Password from Google Account → Security → 2FA → App passwords&gt;
+From Email:      youraddress@gmail.com</pre>
+
+    <h3>Outlook / Microsoft 365</h3>
+    <pre>SMTP Host:       smtp.office365.com
+Port:            587
+Encryption:      TLS
+Username:        youraddress@yourdomain.com
+Password:        &lt;account password&gt;</pre>
+
+    <h3>Generic Provider (e.g. Aruba, Hosting.it)</h3>
+    <pre>SMTP Host:       smtps.aruba.it   (or as specified by your host)
+Port:            465
+Encryption:      SSL
+Username:        youraddress@yourdomain.it
+Password:        &lt;mailbox password&gt;</pre>
+
+    <div class="callout callout-tip">
+      If SMTP is not configured, the system falls back to PHP's <code>mail()</code> function.
+      This may work on some shared hosting but is often blocked or sent to spam.
+      SMTP is strongly recommended for reliable delivery.
+    </div>
+  </section>
+
+  <!-- DEFAULT CREDENTIALS -->
+  <section id="defaults">
+    <h2>Default Credentials</h2>
+    <div class="callout callout-warn">
+      <strong>Change these immediately after the first login.</strong>
+    </div>
+    <table class="table doc-table">
+      <thead><tr><th>Username</th><th>Password</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>admin</code></td><td><code>Admin@2026!</code></td><td><span class="role-badge admin">Admin</span></td></tr>
+        <tr><td><code>operator1</code></td><td><code>Operator@1</code></td><td><span class="role-badge operator">Operator</span></td></tr>
+        <tr><td><code>utente1</code></td><td><code>Utente@1</code></td><td><span class="role-badge user">User</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- CHANGELOG -->
+  <section id="changelog">
+    <h2>Changelog</h2>
+
+    <h3>v1.1.0 — 2026-04-17</h3>
+    <ul>
+      <li>✅ Email notifications: new ticket, status change, comments — SMTP + <code>mail()</code> fallback</li>
+      <li>✅ White-label config: brand name, primary color, logo URL from admin Settings tab</li>
+      <li>✅ CSV export: all tickets, activity log, statistics report — UTF-8 BOM for Excel</li>
+      <li>✅ Admin Settings tab with SMTP configuration form</li>
+    </ul>
+
+    <h3>v1.0.1 — 2026-04-16</h3>
+    <ul>
+      <li>🐛 Fixed: <code>APP_ROOT</code> relative-path issue on CGI/shared hosting (<code>realpath()</code>)</li>
+      <li>🐛 Fixed: <code>APP_URL</code> symlink mismatch causing asset 404s — replaced with <code>SCRIPT_NAME</code> derivation</li>
+    </ul>
+
+    <h3>v1.0.0 — 2026-04-16</h3>
+    <ul>
+      <li>🎉 Initial release: full ticket CRUD, 3-role access control, comment + image upload system,
+          admin report, user management, activity log, Bootstrap 5 UI</li>
+    </ul>
+  </section>
+
+  <hr class="mt-5">
+  <p class="text-muted small text-center pb-4">Ticketing System Documentation — generated 2026-04-17 · <a href="https://github.com/MisterCoder74/ticketing-system" target="_blank">GitHub</a></p>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Highlight active sidebar link on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const links    = document.querySelectorAll('#sidebar a.nav-link');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`#sidebar a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

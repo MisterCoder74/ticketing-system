@@ -77,6 +77,9 @@ $brandLogo  = htmlspecialchars($s['brand_logo'] ?? '');
       <p class="text-center mt-3 mb-0 small text-muted">
         Non hai un account? Contatta l'amministratore.
       </p>
+      <p class="text-center mt-2 mb-0">
+        <a href="documentation.html" target="_blank" class="small text-muted text-decoration-none">📄 Documentation</a>
+      </p>
     </div>
   </div>
 </div>
