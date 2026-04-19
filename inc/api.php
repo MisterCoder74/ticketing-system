@@ -282,8 +282,17 @@ function apiUpdateTicket(): void {
         }
         if (array_key_exists('assigned_to', $d)) {
             $t['assigned_to'] = $d['assigned_to'] ?: null;
+            if ($t['assigned_to']) {
+                $umap       = userMap();
+                $assignee   = $umap[$t['assigned_to']] ?? null;
+                $assignNote = $assignee
+                    ? $assignee['name'] . ' (' . $assignee['role'] . ')'
+                    : $t['assigned_to'];
+            } else {
+                $assignNote = 'nessuno';
+            }
             $t['history'][] = ['action' => 'assigned', 'by' => $user['id'], 'by_name' => $user['name'],
-                'at' => nowIso(), 'note' => 'Assegnato a: ' . ($t['assigned_to'] ?? 'nessuno')];
+                'at' => nowIso(), 'note' => 'Assegnato a: ' . $assignNote];
         }
         $t['updated_at'] = nowIso();
         $updatedTicket   = $t;
