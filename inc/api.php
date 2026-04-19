@@ -113,6 +113,12 @@ switch ($action) {
         apiExportReport();
         break;
 
+    // Stale ticket check
+    case 'stale_check':
+        requireRole('admin');
+        apiStaleCheck();
+        break;
+
     default:
         jsonResponse(['error' => 'Azione non valida'], 400);
 }
@@ -302,6 +308,12 @@ function apiUpdateTicket(): void {
     if (!$found) jsonResponse(['error' => 'Ticket non trovato'], 404);
     saveJson(APP_ROOT . '/data/tickets.json', $tickets);
     appendLog('ticket_updated', $user['id'], "Ticket aggiornato: {$id}");
+
+    // Reset stale alert when ticket is assigned or resolved/closed
+    $shouldClearAlert = false;
+    if (array_key_exists('assigned_to', $d) && !empty($d['assigned_to'])) $shouldClearAlert = true;
+    if ($statusChange && in_array($statusChange['new'], ['risolto', 'chiuso'], true)) $shouldClearAlert = true;
+    if ($shouldClearAlert) clearStaleAlert($id);
 
     if ($statusChange && $updatedTicket) {
         notifyStatusChange($updatedTicket, $statusChange['old'], $statusChange['new'], $user);
@@ -590,7 +602,8 @@ function apiSaveSettings(): void {
 
     $allowed = ['brand_name','brand_logo','brand_color','support_email',
                 'email_notifications','smtp_host','smtp_port','smtp_user',
-                'smtp_from','smtp_from_name','smtp_encryption'];
+                'smtp_from','smtp_from_name','smtp_encryption',
+                'site_url','stale_alert_enabled','stale_alert_hours'];
     $new = $old;
     foreach ($allowed as $key) {
         if (array_key_exists($key, $d)) $new[$key] = $d[$key];
@@ -696,4 +709,11 @@ function findTicket(string $id): ?array {
 
 function userMap(): array {
     return array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+}
+
+// ── STALE TICKET CHECK ────────────────────────────────────────────────────────
+
+function apiStaleCheck(): void {
+    $result = runStaleCheck();
+    jsonResponse(['success' => true, 'result' => $result]);
 }

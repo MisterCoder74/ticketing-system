@@ -115,7 +115,12 @@ function getTicketOpenerUser(array $ticket): ?array {
 }
 
 function ticketUrl(string $id): string {
-    return APP_URL . '/pages/ticket_details.php?id=' . urlencode($id);
+    $base = APP_URL;
+    // In CLI/cron mode APP_URL may be a filesystem path — fall back to configured site_url
+    if (!str_starts_with($base, 'http')) {
+        $base = rtrim(appSettings()['site_url'] ?? '', '/');
+    }
+    return $base . '/pages/ticket_details.php?id=' . urlencode($id);
 }
 
 function btnLink(string $url, string $color, string $label): string {
@@ -204,3 +209,140 @@ function notifyNewComment(array $ticket, array $comment, array $commenter): void
         if ($u['id'] !== $commenter['id']) sendNotification($u['email'], $subject, $html);
     }
 }
+
+// ── Stale ticket alert ────────────────────────────────────────────────────────
+
+/**
+ * Send an alert email to all admins for a ticket that has been
+ * unassigned or open (stato: nuovo) for too long.
+ */
+function notifyStaleTicket(array $ticket): bool {
+    $cfg = appSettings();
+    if (empty($cfg['email_notifications'])) return false;
+
+    $color  = $cfg['brand_color'] ?: '#0d6efd';
+    $id     = htmlspecialchars($ticket['id']);
+    $title  = htmlspecialchars($ticket['title'] ?? '');
+    $status = htmlspecialchars($ticket['status'] ?? '');
+    $prio   = htmlspecialchars($ticket['priority'] ?? '');
+    $cat    = htmlspecialchars($ticket['category'] ?? '');
+    $desc   = nl2br(htmlspecialchars(mb_substr($ticket['description'] ?? '', 0, 300)));
+
+    $umap       = userMap();
+    $createdBy  = htmlspecialchars($umap[$ticket['created_by'] ?? '']['name'] ?? ($ticket['created_by'] ?? '—'));
+    $assignedTo = $ticket['assigned_to']
+        ? htmlspecialchars($umap[$ticket['assigned_to']]['name'] ?? $ticket['assigned_to'])
+        : '<em style="color:#dc3545">Non assegnato</em>';
+
+    $createdAt = new DateTimeImmutable($ticket['created_at']);
+    $hoursOld  = round((time() - $createdAt->getTimestamp()) / 3600, 1);
+
+    $rows = implode('', [
+        "<tr><td style='padding:8px 14px;color:#666;width:150px;border-bottom:1px solid #eee'>🎫 ID</td><td style='padding:8px 14px;border-bottom:1px solid #eee'><strong>{$id}</strong></td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>📝 Titolo</td><td style='padding:8px 14px;border-bottom:1px solid #eee'><strong>{$title}</strong></td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>📊 Stato</td><td style='padding:8px 14px;border-bottom:1px solid #eee'>{$status}</td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>🔥 Priorità</td><td style='padding:8px 14px;border-bottom:1px solid #eee'>{$prio}</td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>🗂️ Categoria</td><td style='padding:8px 14px;border-bottom:1px solid #eee'>{$cat}</td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>👤 Aperto da</td><td style='padding:8px 14px;border-bottom:1px solid #eee'>{$createdBy}</td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666;border-bottom:1px solid #eee'>🧑‍💼 Assegnato a</td><td style='padding:8px 14px;border-bottom:1px solid #eee'>{$assignedTo}</td></tr>",
+        "<tr><td style='padding:8px 14px;color:#666'>⏱️ Aperto il</td><td style='padding:8px 14px'>"
+            . $createdAt->format('d/m/Y H:i')
+            . " <span style='background:#dc3545;color:#fff;border-radius:12px;padding:2px 9px;font-size:12px;font-weight:bold'>{$hoursOld}h fa</span></td></tr>",
+    ]);
+
+    $content = "<div style='background:#fff3cd;border-left:4px solid #ffc107;border-radius:0 6px 6px 0;padding:14px 18px;margin-bottom:20px'>"
+             . "<strong style='color:#664d03'>⚠️ Attenzione</strong><br>"
+             . "<span style='color:#664d03'>Il ticket <strong>n° {$id}</strong> non è stato gestito da <strong>{$hoursOld} ore</strong>.</span>"
+             . "</div>"
+             . "<table style='width:100%;border-collapse:collapse;font-size:14px;background:#f9f9f9;border-radius:6px;overflow:hidden'>{$rows}</table>"
+             . "<div style='margin:20px 0'>"
+             . "<p style='color:#555;font-size:13px;margin:0 0 6px'><strong>Descrizione:</strong></p>"
+             . "<div style='background:#f0f0f0;border-radius:4px;padding:12px 16px;color:#555;font-size:13px;line-height:1.6'>{$desc}</div>"
+             . "</div>"
+             . btnLink(ticketUrl($ticket['id']), '#dc3545', '🔴 Gestisci Ticket Ora');
+
+    $html    = emailTemplate('⚠️ Ticket in attesa di gestione', $content);
+    $subject = "Ticketing System alert for n° {$id} still unassigned or open";
+
+    $sent = false;
+    foreach (loadJson(APP_ROOT . '/data/users.json') as $u) {
+        if (($u['role'] ?? '') !== 'admin') continue;
+        if (empty($u['email']) || !filter_var($u['email'], FILTER_VALIDATE_EMAIL)) continue;
+        if (!($u['active'] ?? true)) continue;
+        if (sendNotification($u['email'], $subject, $html)) $sent = true;
+    }
+    return $sent;
+}
+
+/**
+ * Core stale-ticket check logic — shared between the cron script and the admin API.
+ * Returns ['checked', 'alerted', 'timestamp', 'errors'].
+ */
+function runStaleCheck(): array {
+    $cfg         = appSettings();
+    $threshHours = max(1, (int)($cfg['stale_alert_hours'] ?? 12));
+    $staleFile   = APP_ROOT . '/data/stale_alerts.json';
+    $tickets     = loadJson(APP_ROOT . '/data/tickets.json');
+    $staleLog    = file_exists($staleFile) ? (json_decode(file_get_contents($staleFile), true) ?? []) : [];
+    if (!is_array($staleLog)) $staleLog = [];
+
+    $now     = new DateTimeImmutable();
+    $checked = 0;
+    $alerted = 0;
+    $errors  = [];
+
+    foreach ($tickets as $ticket) {
+        $status = $ticket['status'] ?? '';
+
+        // Skip resolved / closed
+        if (in_array($status, ['risolto', 'chiuso'], true)) continue;
+
+        // Condition: unassigned OR open (nuovo)
+        $isUnassigned = empty($ticket['assigned_to']);
+        $isOpen       = ($status === 'nuovo');
+        if (!$isUnassigned && !$isOpen) continue;
+
+        $checked++;
+        $ticketId = $ticket['id'];
+
+        // Already alerted for this ticket? Skip (will re-alert only after reset)
+        if (isset($staleLog[$ticketId])) continue;
+
+        // Check age against created_at
+        try {
+            $createdAt = new DateTimeImmutable($ticket['created_at']);
+        } catch (\Throwable $e) {
+            continue;
+        }
+        $hoursOld = ($now->getTimestamp() - $createdAt->getTimestamp()) / 3600;
+        if ($hoursOld < $threshHours) continue;
+
+        // Send alert
+        if (notifyStaleTicket($ticket)) {
+            $staleLog[$ticketId] = nowIso();
+            $alerted++;
+        } else {
+            $errors[] = "Send failed for ticket {$ticketId} (check SMTP settings)";
+        }
+    }
+
+    // Persist alert log
+    file_put_contents($staleFile, json_encode($staleLog, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    appendLog('stale_check', 'system', "Verifica ticket scaduti: {$checked} analizzati, {$alerted} alert inviati.");
+
+    return ['checked' => $checked, 'alerted' => $alerted, 'timestamp' => nowIso(), 'errors' => $errors];
+}
+
+/**
+ * Remove a ticket from the stale-alerts log so it can trigger again if it
+ * becomes stale after being assigned or resolved/closed.
+ */
+function clearStaleAlert(string $ticketId): void {
+    $file = APP_ROOT . '/data/stale_alerts.json';
+    if (!file_exists($file)) return;
+    $log = json_decode(file_get_contents($file), true) ?? [];
+    if (!is_array($log) || !isset($log[$ticketId])) return;
+    unset($log[$ticketId]);
+    file_put_contents($file, json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+

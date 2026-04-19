@@ -872,6 +872,33 @@ async function loadSettingsTab() {
         <input type="text" id="s-smtp_from_name" class="form-control" value="${esc(s.smtp_from_name||'')}">
       </div>
       <div class="col-12">
+      <div class="col-12 mt-2"><h6 class="text-muted text-uppercase small mb-1">⏰ Alert Ticket Scaduti</h6><hr class="mt-0"></div>
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="s-stale_alert_enabled" ${s.stale_alert_enabled ? 'checked' : ''}>
+          <label class="form-check-label" for="s-stale_alert_enabled">Abilita alert per ticket non gestiti</label>
+        </div>
+        <div class="form-text">Invia email all'admin quando un ticket rimane <em>unassigned</em> o <em>open</em> per più del tempo configurato.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Soglia ore <span class="text-muted small">(default: 12)</span></label>
+        <input type="number" id="s-stale_alert_hours" class="form-control" value="${s.stale_alert_hours ?? 12}" min="1" max="720">
+      </div>
+      <div class="col-md-9">
+        <label class="form-label">URL sito <span class="text-muted small">(per link nelle email cron, es: https://tuodominio.it/ticketing)</span></label>
+        <input type="url" id="s-site_url" class="form-control" value="${esc(s.site_url||'')}" placeholder="https://tuodominio.it/ticketing">
+      </div>
+      <div class="col-12">
+        <div class="bg-light border rounded p-3" style="font-size:13px">
+          <strong>⚙️ Setup cron (ogni 30 min):</strong><br>
+          <code>*/30 * * * * php /percorso/assoluto/cron/check_stale_tickets.php &gt;&gt; /tmp/stale.log 2&gt;&amp;1</code>
+        </div>
+      </div>
+      <div class="col-12">
+        <button type="button" class="btn btn-outline-warning btn-sm" id="btn-stale-check">▶️ Esegui verifica ora</button>
+        <span id="stale-check-result" class="ms-3 small"></span>
+      </div>
+      <div class="col-12">
         <div id="settings-error" class="alert alert-danger d-none"></div>
         <div id="settings-ok"    class="alert alert-success d-none">Impostazioni salvate!</div>
         <button type="submit" class="btn btn-primary">💾 Salva impostazioni</button>
@@ -879,6 +906,24 @@ async function loadSettingsTab() {
     </form>`;
 
   document.getElementById('form-settings').addEventListener('submit', saveSettingsTab);
+
+  document.getElementById('btn-stale-check').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-stale-check');
+    const res = document.getElementById('stale-check-result');
+    btn.disabled = true;
+    res.textContent = '⏳ Verifica in corso...';
+    res.className = 'ms-3 small text-muted';
+    const data = await api('stale_check', { method: 'POST', body: {} });
+    btn.disabled = false;
+    if (data && data.success) {
+      const r = data.result;
+      res.textContent = `✅ Fatto: ${r.checked} ticket analizzati, ${r.alerted} alert inviati.`;
+      res.className = 'ms-3 small text-success';
+    } else {
+      res.textContent = '❌ Errore durante la verifica.';
+      res.className = 'ms-3 small text-danger';
+    }
+  });
 }
 
 async function saveSettingsTab(e) {
@@ -900,6 +945,9 @@ async function saveSettingsTab(e) {
     smtp_pass:           document.getElementById('s-smtp_pass').value,
     smtp_from:           document.getElementById('s-smtp_from').value,
     smtp_from_name:      document.getElementById('s-smtp_from_name').value,
+    site_url:            document.getElementById('s-site_url').value,
+    stale_alert_enabled: document.getElementById('s-stale_alert_enabled').checked,
+    stale_alert_hours:   parseInt(document.getElementById('s-stale_alert_hours').value) || 12,
   };
 
   const data = await api('save_settings', { method: 'POST', body: payload });

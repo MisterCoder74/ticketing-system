@@ -44,6 +44,9 @@ function appSettings(): array {
         'smtp_from'           => '',
         'smtp_from_name'      => 'Ticketing System',
         'smtp_encryption'     => 'tls',
+        'site_url'            => '',
+        'stale_alert_enabled' => false,
+        'stale_alert_hours'   => 12,
     ], $saved);
     return $cache;
 }
