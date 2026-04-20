@@ -94,3 +94,7 @@ function appendLog(string $action, string $userId, string $note): void {
     if (count($logs) > 1000) $logs = array_slice($logs, -1000);
     saveJson($file, $logs);
 }
+
+function userMap(): array {
+    return array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+}

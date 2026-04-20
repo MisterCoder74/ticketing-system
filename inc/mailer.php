@@ -280,6 +280,13 @@ function notifyStaleTicket(array $ticket): bool {
  */
 function runStaleCheck(): array {
     $cfg         = appSettings();
+
+    // Respect the stale_alert_enabled toggle
+    if (empty($cfg['stale_alert_enabled'])) {
+        return ['checked' => 0, 'alerted' => 0, 'timestamp' => nowIso(),
+                'errors' => [], 'skipped_reason' => 'stale_alert_enabled is off'];
+    }
+
     $threshHours = max(1, (int)($cfg['stale_alert_hours'] ?? 12));
     $staleFile   = APP_ROOT . '/data/stale_alerts.json';
     $tickets     = loadJson(APP_ROOT . '/data/tickets.json');

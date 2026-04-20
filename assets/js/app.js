@@ -917,8 +917,17 @@ async function loadSettingsTab() {
     btn.disabled = false;
     if (data && data.success) {
       const r = data.result;
-      res.textContent = `✅ Fatto: ${r.checked} ticket analizzati, ${r.alerted} alert inviati.`;
-      res.className = 'ms-3 small text-success';
+      if (r.skipped_reason) {
+        res.textContent = `ℹ️ Alert disabilitati (${r.skipped_reason}). Abilitali in Impostazioni.`;
+        res.className = 'ms-3 small text-muted';
+      } else if (r.errors && r.errors.length > 0) {
+        res.innerHTML = `⚠️ ${r.checked} analizzati, ${r.alerted} inviati &mdash; `
+          + `errori: <em>${r.errors.join('; ')}</em>`;
+        res.className = 'ms-3 small text-warning';
+      } else {
+        res.textContent = `✅ Fatto: ${r.checked} ticket analizzati, ${r.alerted} alert inviati.`;
+        res.className = 'ms-3 small text-success';
+      }
     } else {
       res.textContent = '❌ Errore durante la verifica.';
       res.className = 'ms-3 small text-danger';

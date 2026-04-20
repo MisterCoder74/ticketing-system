@@ -707,8 +707,12 @@ function findTicket(string $id): ?array {
     return null;
 }
 
-function userMap(): array {
-    return array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+// userMap() is now defined in inc/helpers.php (needed by cron too)
+// Kept here as a no-op guard to avoid redeclaration if this file is ever loaded standalone.
+if (!function_exists('userMap')) {
+    function userMap(): array {
+        return array_column(loadJson(APP_ROOT . '/data/users.json'), null, 'id');
+    }
 }
 
 // ── STALE TICKET CHECK ────────────────────────────────────────────────────────
