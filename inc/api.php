@@ -737,7 +737,16 @@ function apiExportHtmlReport(): void {
     $umap    = userMap();
     $cfg     = appSettings();
     $brand   = htmlspecialchars($cfg['brand_name'] ?? 'Ticketing System');
-    $siteUrl = rtrim($cfg['site_url'] ?? APP_URL, '/');
+    // Build an absolute base URL so links work in the downloaded HTML file.
+    // Preference order: (1) site_url from settings, (2) scheme+host+APP_URL, (3) no link.
+    if (!empty($cfg['site_url'])) {
+        $siteUrl = rtrim($cfg['site_url'], '/');
+    } elseif (!empty($_SERVER['HTTP_HOST'])) {
+        $scheme  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $siteUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . rtrim(APP_URL, '/');
+    } else {
+        $siteUrl = '';
+    }
 
     header('Content-Type: text/html; charset=UTF-8');
     header('Content-Disposition: attachment; filename="report_tickets_' . date('Ymd_His') . '.html"');
@@ -785,7 +794,7 @@ a{color:#0d6efd;text-decoration:none}a:hover{text-decoration:underline}
         $colors   = explode(':', $statusColors[$status] ?? '#e2e3e5:#41464b');
         $badge    = '<span class="badge" style="background:' . $colors[0] . ';color:' . $colors[1] . '">' . $label . '</span>';
 
-        $link     = $siteUrl . '/pages/ticket_details.php?id=' . urlencode($t['id']);
+        $link     = $siteUrl !== '' ? $siteUrl . '/pages/ticket_details.php?id=' . urlencode($t['id']) : '';
 
         echo '<tr>';
         echo '<td><strong>' . htmlspecialchars($t['id']) . '</strong></td>';
@@ -796,7 +805,7 @@ a{color:#0d6efd;text-decoration:none}a:hover{text-decoration:underline}
         echo '<td>' . $badge . '</td>';
         echo '<td>' . $lastAt . '</td>';
         echo '<td class="op">' . $lastNote . '</td>';
-        echo '<td><a href="' . $link . '" target="_blank">Apri &rarr;</a></td>';
+        echo '<td>' . ($link !== '' ? '<a href="' . $link . '" target="_blank">Apri &rarr;</a>' : '&mdash;') . '</td>';
         echo '</tr>';
     }
 
