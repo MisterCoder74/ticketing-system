@@ -733,8 +733,9 @@ async function loadReport() {
 
   wrap.innerHTML = `
     <h5 class="mb-3">📊 Report
-      <a href="${APP_URL}/inc/api.php?action=export_report" class="btn btn-sm btn-outline-secondary ms-2" download>⬇ CSV</a>
-      <a href="${APP_URL}/inc/api.php?action=export_tickets" class="btn btn-sm btn-outline-secondary ms-1" download>⬇ Tutti i ticket CSV</a>
+      <a href="${APP_URL}/inc/api.php?action=export_report" class="btn btn-sm btn-outline-secondary ms-2" download>⬇ CSV riepilogo</a>
+      <a href="${APP_URL}/inc/api.php?action=export_tickets" class="btn btn-sm btn-outline-secondary ms-1" download>⬇ Ticket CSV</a>
+      <a href="${APP_URL}/inc/api.php?action=export_html" class="btn btn-sm btn-outline-secondary ms-1" download>⬇ Ticket HTML</a>
     </h5>
     <div class="row g-3 mb-4">
       <div class="col-6 col-md-3"><div class="report-card"><div class="display-5 text-primary">${data.total_tickets}</div><div class="text-muted small">Ticket totali</div></div></div>
@@ -787,7 +788,16 @@ async function loadLogs(page = 1) {
             <tr class="log-row">
               <td><code>${esc(l.action)}</code></td>
               <td>${esc(l.user_name)}</td>
-              <td>${esc(l.note)}</td>
+              <td>${(() => {
+                let n = esc(l.note);
+                if (l.ticket_title) {
+                  const short = l.ticket_title.length > 30
+                    ? l.ticket_title.substring(0, 30) + '[...]'
+                    : l.ticket_title;
+                  n += ` <span class="text-muted fst-italic">– ${esc(short)}</span>`;
+                }
+                return n;
+              })()}</td>
               <td class="text-muted">${fmtDate(l.at)}</td>
             </tr>`).join('')}
         </tbody>
@@ -824,8 +834,13 @@ async function loadSettingsTab() {
         <input type="color" id="s-brand_color" class="form-control form-control-color" value="${esc(s.brand_color||'#0d6efd')}">
       </div>
       <div class="col-md-9">
-        <label class="form-label">URL Logo <span class="text-muted small">(opzionale, URL immagine)</span></label>
-        <input type="url" id="s-brand_logo" class="form-control" value="${esc(s.brand_logo||'')}" placeholder="https://...">
+        <label class="form-label">Logo <span class="text-muted small">(URL o carica file)</span></label>
+        <div class="input-group">
+          <input type="url" id="s-brand_logo" class="form-control" value="${esc(s.brand_logo||'')}" placeholder="https://...">
+          <input type="file" id="s-brand_logo-file" class="form-control" style="max-width:220px" accept="image/jpeg,image/png,image/gif,image/webp">
+          <button class="btn btn-outline-secondary" type="button" onclick="uploadLogo()">Carica</button>
+        </div>
+        ${s.brand_logo ? `<img src="${esc(s.brand_logo)}" style="max-height:40px;margin-top:6px;border-radius:4px;border:1px solid #dee2e6" onerror="this.style.display='none'">` : ''}
       </div>
       <div class="col-md-6">
         <label class="form-label">Email di supporto</label>
@@ -933,6 +948,32 @@ async function loadSettingsTab() {
       res.className = 'ms-3 small text-danger';
     }
   });
+}
+
+async function uploadLogo() {
+  const fileInput = document.getElementById('s-brand_logo-file');
+  if (!fileInput || !fileInput.files.length) {
+    alert('Seleziona un file immagine prima di caricare.');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('action', 'upload_logo');
+  fd.append('logo', fileInput.files[0]);
+  try {
+    const res  = await fetch(API_URL, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.url) {
+      document.getElementById('s-brand_logo').value = data.url;
+      fileInput.value = '';
+      // Refresh preview
+      const existing = document.querySelector('#tab-settings img[data-logo-preview]');
+      if (existing) existing.src = data.url;
+    } else {
+      alert('Errore upload: ' + (data.error || 'sconosciuto'));
+    }
+  } catch (err) {
+    alert('Errore durante l\'upload del logo.');
+  }
 }
 
 async function saveSettingsTab(e) {

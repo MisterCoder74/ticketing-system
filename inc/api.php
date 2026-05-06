@@ -7,7 +7,7 @@ require_once __DIR__ . '/mailer.php';
 
 header('Cache-Control: no-store');
 // CSV exports send their own headers — skip JSON content-type for those actions
-$_exportActions = ['export_tickets', 'export_logs', 'export_report'];
+$_exportActions = ['export_tickets', 'export_logs', 'export_report', 'export_html'];
 if (!in_array($_REQUEST['action'] ?? '', $_exportActions, true)) {
     header('Content-Type: application/json; charset=utf-8');
 }
@@ -69,6 +69,7 @@ switch ($action) {
 
     // Upload
     case 'upload':          apiUpload();         break;
+    case 'upload_logo':     requireRole('admin'); apiLogoUpload(); break;
 
     // Operators list
     case 'operators':
@@ -111,6 +112,10 @@ switch ($action) {
     case 'export_report':
         requireRole('admin');
         apiExportReport();
+        break;
+    case 'export_html':
+        requireRole('admin');
+        apiExportHtmlReport();
         break;
 
     // Stale ticket check
@@ -580,8 +585,17 @@ function apiLogs(): void {
     $perPage = 50;
     $logs    = array_slice($logs, ($page - 1) * $perPage, $perPage);
 
-    $umap = userMap();
-    foreach ($logs as &$l) $l['user_name'] = $umap[$l['user_id']]['name'] ?? 'N/A';
+    $umap         = userMap();
+    $ticketTitles = array_column(loadJson(APP_ROOT . '/data/tickets.json'), 'title', 'id');
+
+    foreach ($logs as &$l) {
+        $l['user_name'] = $umap[$l['user_id']]['name'] ?? 'N/A';
+        // Extract ticket ID from note tail (e.g. "Ticket aggiornato: t1a2b3")
+        if (preg_match('/:\s*(\S+)$/', $l['note'] ?? '', $m) && isset($ticketTitles[$m[1]])) {
+            $l['ticket_id_ref'] = $m[1];
+            $l['ticket_title']  = $ticketTitles[$m[1]];
+        }
+    }
 
     jsonResponse(['logs' => $logs, 'total' => $total, 'page' => $page]);
 }
@@ -693,7 +707,104 @@ function apiExportReport(): void {
     exit;
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+function apiLogoUpload(): void {
+    if (empty($_FILES['logo'])) jsonResponse(['error' => 'Nessun file ricevuto'], 400);
+
+    $file = $_FILES['logo'];
+    if ($file['error'] !== UPLOAD_ERR_OK)          jsonResponse(['error' => 'Errore durante l\'upload'], 400);
+    if ($file['size'] > MAX_FILE_SIZE)             jsonResponse(['error' => 'File troppo grande (max 5 MB)'], 400);
+
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, ALLOWED_EXTENSIONS, true)) jsonResponse(['error' => 'Tipo file non consentito'], 422);
+
+    $dir = APP_ROOT . '/uploads/logos/';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    $name = 'logo_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    if (!move_uploaded_file($file['tmp_name'], $dir . $name)) jsonResponse(['error' => 'Errore salvataggio file'], 500);
+
+    $url     = APP_URL . '/uploads/logos/' . $name;
+    $cfgFile = APP_ROOT . '/data/settings.json';
+    $cfg     = file_exists($cfgFile) ? (json_decode(file_get_contents($cfgFile), true) ?? []) : [];
+    $cfg['brand_logo'] = $url;
+    file_put_contents($cfgFile, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    jsonResponse(['success' => true, 'url' => $url]);
+}
+
+function apiExportHtmlReport(): void {
+    $tickets = loadJson(APP_ROOT . '/data/tickets.json');
+    $umap    = userMap();
+    $cfg     = appSettings();
+    $brand   = htmlspecialchars($cfg['brand_name'] ?? 'Ticketing System');
+    $siteUrl = rtrim($cfg['site_url'] ?? APP_URL, '/');
+
+    header('Content-Type: text/html; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="report_tickets_' . date('Ymd_His') . '.html"');
+    header('Cache-Control: no-store');
+
+    $statusLabels = ['nuovo' => 'Nuovo', 'in_lavorazione' => 'In lavorazione', 'risolto' => 'Risolto', 'chiuso' => 'Chiuso'];
+    $statusColors = ['nuovo' => '#cfe2ff:#084298', 'in_lavorazione' => '#fff3cd:#664d03',
+                     'risolto' => '#d1e7dd:#0f5132', 'chiuso' => '#e2e3e5:#41464b'];
+
+    echo '<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">';
+    echo '<title>Report Ticket &ndash; ' . $brand . '</title>';
+    echo '<style>
+body{font-family:Arial,sans-serif;font-size:13px;color:#222;padding:24px;max-width:1400px;margin:auto}
+h1{font-size:20px;margin-bottom:4px}
+.meta{color:#666;font-size:12px;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#0d6efd;color:#fff;padding:9px 11px;text-align:left;font-weight:600;font-size:12px}
+td{padding:8px 11px;border-bottom:1px solid #e4e7ec;vertical-align:top;font-size:12px}
+tr:nth-child(even) td{background:#f7f9fc}
+a{color:#0d6efd;text-decoration:none}a:hover{text-decoration:underline}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.op{color:#555;font-style:italic}
+</style></head><body>';
+
+    echo '<h1>&#128203; Report Ticket &ndash; ' . $brand . '</h1>';
+    echo '<div class="meta">Generato il ' . date('d/m/Y \a\l\l\e H:i') . ' &nbsp;&middot;&nbsp; ' . count($tickets) . ' ticket totali</div>';
+    echo '<table><thead><tr>';
+    foreach (['N° Ticket','Titolo','Data apertura','Creatore','Operatore assegnato','Stato','Data ultima op.','Ultima operazione','Link'] as $col) {
+        echo '<th>' . $col . '</th>';
+    }
+    echo '</tr></thead><tbody>';
+
+    foreach ($tickets as $t) {
+        $last     = !empty($t['history']) ? end($t['history']) : null;
+        $lastNote = $last ? htmlspecialchars($last['note'] ?? ucfirst($last['action'] ?? '—')) : '—';
+        $lastAt   = $last ? htmlspecialchars(substr($last['at'] ?? '', 0, 16)) : '—';
+
+        $creator  = htmlspecialchars($umap[$t['created_by']]['name'] ?? $t['created_by']);
+        $assigned = $t['assigned_to']
+                  ? htmlspecialchars($umap[$t['assigned_to']]['name'] ?? $t['assigned_to'])
+                  : '<span style="color:#aaa">Non assegnato</span>';
+
+        $status   = $t['status'] ?? '';
+        $label    = htmlspecialchars($statusLabels[$status] ?? $status);
+        $colors   = explode(':', $statusColors[$status] ?? '#e2e3e5:#41464b');
+        $badge    = '<span class="badge" style="background:' . $colors[0] . ';color:' . $colors[1] . '">' . $label . '</span>';
+
+        $link     = $siteUrl . '/pages/ticket_details.php?id=' . urlencode($t['id']);
+
+        echo '<tr>';
+        echo '<td><strong>' . htmlspecialchars($t['id']) . '</strong></td>';
+        echo '<td>' . htmlspecialchars($t['title']) . '</td>';
+        echo '<td>' . htmlspecialchars(substr($t['created_at'] ?? '', 0, 16)) . '</td>';
+        echo '<td>' . $creator . '</td>';
+        echo '<td>' . $assigned . '</td>';
+        echo '<td>' . $badge . '</td>';
+        echo '<td>' . $lastAt . '</td>';
+        echo '<td class="op">' . $lastNote . '</td>';
+        echo '<td><a href="' . $link . '" target="_blank">Apri &rarr;</a></td>';
+        echo '</tr>';
+    }
+
+    echo '</tbody></table></body></html>';
+    exit;
+}
+
+
 
 function jsonBody(): array {
     $raw = file_get_contents('php://input');
